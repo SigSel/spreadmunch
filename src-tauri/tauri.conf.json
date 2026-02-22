@@ -1,0 +1,21 @@
+{
+  "productName": "Spreadmunch",
+  "version": "0.1.0",
+  "identifier": "com.spreadmunch.app",
+  "build": {
+    "beforeDevCommand": "cd frontend && trunk serve",
+    "beforeBuildCommand": "cd frontend && trunk build",
+    "devUrl": "http://localhost:8080",
+    "frontendDist": "../frontend/dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "Spreadmunch",
+        "width": 900,
+        "height": 600
+      }
+    ]
+  }
+}

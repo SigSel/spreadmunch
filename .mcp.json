@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "refstore": {
+      "args": [
+        "mcp"
+      ],
+      "command": "/home/sse/.cargo/bin/refstore"
+    }
+  }
+}

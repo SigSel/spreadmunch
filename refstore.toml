@@ -1,0 +1,8 @@
+version = 1
+gitignore_references = true
+
+[references.dwind]
+
+[references.rust-dominator]
+
+[references.tauri]

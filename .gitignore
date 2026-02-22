@@ -1,0 +1,27 @@
+.references/
+
+# Rust
+/target/
+**/*.rs.bk
+
+# Tauri
+src-tauri/target/
+src-tauri/WixTools/
+
+# Trunk (WASM frontend bundler)
+/frontend/dist/
+dist/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
