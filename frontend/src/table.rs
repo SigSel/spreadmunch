@@ -1,11 +1,24 @@
+use std::collections::HashSet;
+
 use crate::app::SpreadsheetData;
 use dominator::{html, Dom};
 use dwind::prelude::*;
 use dwind_macros::dwclass;
 
-pub fn render_table(data: &SpreadsheetData) -> Dom {
+pub fn render_table(
+    data: &SpreadsheetData,
+    matching_keys: Option<&HashSet<String>>,
+    key_col: Option<usize>,
+) -> Dom {
     let headers = data.headers.clone();
-    let rows = data.rows.clone();
+    let rows: Vec<&Vec<String>> = match (matching_keys, key_col) {
+        (Some(keys), Some(col)) => data
+            .rows
+            .iter()
+            .filter(|row| row.get(col).map_or(false, |k| keys.contains(k)))
+            .collect(),
+        _ => data.rows.iter().collect(),
+    };
 
     html!("div", {
         .dwclass!("flex-1 overflow-auto")

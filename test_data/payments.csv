@@ -1,0 +1,16 @@
+Customer,Payment Type,Amount,Date
+Alice,Credit Card,150.00,2024-01-15
+Alice,Bank Transfer,300.00,2024-02-10
+Alice,Credit Card,75.50,2024-03-05
+Bob,Cash,50.00,2024-01-20
+Bob,Cash,120.00,2024-02-15
+Charlie,Credit Card,200.00,2024-01-10
+Charlie,Bank Transfer,450.00,2024-02-20
+Charlie,Cash,80.00,2024-03-01
+Diana,Bank Transfer,500.00,2024-01-25
+Diana,Bank Transfer,250.00,2024-02-28
+Eve,Credit Card,90.00,2024-01-05
+Eve,Cash,60.00,2024-02-12
+Eve,Credit Card,110.00,2024-03-15
+Frank,Cash,200.00,2024-01-30
+Frank,Cash,75.00,2024-02-18

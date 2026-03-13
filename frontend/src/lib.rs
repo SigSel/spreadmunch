@@ -1,6 +1,8 @@
 use wasm_bindgen::prelude::*;
 
 mod app;
+mod cross_filter;
+mod filter_panel;
 mod table;
 
 #[wasm_bindgen(start)]

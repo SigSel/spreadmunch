@@ -3,10 +3,12 @@ use std::sync::Arc;
 use dominator::{clone, events, html, Dom};
 use dwind::prelude::*;
 use dwind_macros::dwclass;
+use futures_signals::map_ref;
 use futures_signals::signal::{Mutable, SignalExt};
-use serde::Deserialize;
 use wasm_bindgen_futures::spawn_local;
 
+use crate::cross_filter::CrossFilter;
+use crate::filter_panel::render_filter_panel;
 use crate::table::render_table;
 
 #[derive(Deserialize, Clone, Debug)]
@@ -16,10 +18,13 @@ pub struct SpreadsheetData {
     pub rows: Vec<Vec<String>>,
 }
 
+use serde::Deserialize;
+
 pub struct App {
-    data: Mutable<Option<SpreadsheetData>>,
+    pub(crate) data: Mutable<Option<SpreadsheetData>>,
     error: Mutable<Option<String>>,
     loading: Mutable<bool>,
+    pub(crate) cross_filter: Arc<CrossFilter>,
 }
 
 impl App {
@@ -28,6 +33,7 @@ impl App {
             data: Mutable::new(None),
             error: Mutable::new(None),
             loading: Mutable::new(false),
+            cross_filter: CrossFilter::new(),
         })
     }
 
@@ -36,12 +42,13 @@ impl App {
         app.error.set(None);
 
         match tauri_wasm::invoke("open_file").await {
-            Ok(js_val) => {
-                match serde_wasm_bindgen::from_value::<SpreadsheetData>(js_val) {
-                    Ok(data) => app.data.set(Some(data)),
-                    Err(e) => app.error.set(Some(format!("Deserialization error: {e}"))),
+            Ok(js_val) => match serde_wasm_bindgen::from_value::<SpreadsheetData>(js_val) {
+                Ok(data) => {
+                    app.cross_filter.reset();
+                    app.data.set(Some(data));
                 }
-            }
+                Err(e) => app.error.set(Some(format!("Deserialization error: {e}"))),
+            },
             Err(e) => {
                 let msg = format!("{:?}", e);
                 if !msg.contains("No file selected") {
@@ -76,6 +83,25 @@ impl App {
                         });
                     }))
                 }))
+                // Cross Filter toggle button (only when data loaded)
+                .child_signal(app.data.signal_cloned().map(clone!(app => move |data| {
+                    data.map(|_| {
+                        html!("button", {
+                            .dwclass!("px-4 py-2 text-white text-sm font-medium rounded")
+                            .style("cursor", "pointer")
+                            .style_signal("background-color",
+                                app.cross_filter.panel_open.signal().map(|open| {
+                                    if open { "#7c3aed" } else { "#6d28d9" }
+                                })
+                            )
+                            .text("Cross Filter")
+                            .event(clone!(app => move |_: events::Click| {
+                                let open = app.cross_filter.panel_open.get();
+                                app.cross_filter.panel_open.set(!open);
+                            }))
+                        })
+                    })
+                })))
                 // File name display
                 .child_signal(app.data.signal_cloned().map(|data| {
                     data.map(|d| {
@@ -96,15 +122,42 @@ impl App {
                     })
                 })
             }))
-            // Content area
-            .child_signal(app.data.signal_cloned().map(|data| {
-                Some(match data {
-                    Some(d) => render_table(&d),
-                    None => html!("div", {
-                        .dwclass!("flex-1 flex items-center justify-center text-gray-500 text-lg")
-                        .text("Open a CSV or XLSX file to get started")
-                    }),
-                })
+            // Content area - flex row with table + optional filter panel
+            .child(html!("div", {
+                .dwclass!("flex-1 flex")
+                .style("overflow", "hidden")
+                // Table container
+                .child(html!("div", {
+                    .style("flex", "1")
+                    .style("min-width", "0")
+                    .style("overflow", "auto")
+                    .child_signal(
+                        map_ref! {
+                            let data = app.data.signal_cloned(),
+                            let keys = app.cross_filter.matching_keys.signal_cloned(),
+                            let key_col = app.cross_filter.key_column.signal()
+                            => {
+                                Some(match data {
+                                    Some(d) => render_table(d, keys.as_ref(), *key_col),
+                                    None => html!("div", {
+                                        .dwclass!("flex-1 flex items-center justify-center text-gray-500 text-lg")
+                                        .text("Open a CSV or XLSX file to get started")
+                                    }),
+                                })
+                            }
+                        }
+                    )
+                }))
+                // Filter panel
+                .child_signal(
+                    app.cross_filter.panel_open.signal().map(clone!(app => move |open| {
+                        if open {
+                            Some(render_filter_panel(app.clone()))
+                        } else {
+                            None
+                        }
+                    }))
+                )
             }))
         })
     }
