@@ -5,10 +5,12 @@ use dwind::prelude::*;
 use dwind_macros::dwclass;
 use futures_signals::map_ref;
 use futures_signals::signal::{Mutable, SignalExt};
+use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
 
 use crate::cross_filter::CrossFilter;
 use crate::filter_panel::render_filter_panel;
+use crate::settings::{render_settings_modal, Settings};
 use crate::table::render_table;
 
 #[derive(Deserialize, Clone, Debug)]
@@ -25,6 +27,7 @@ pub struct App {
     error: Mutable<Option<String>>,
     loading: Mutable<bool>,
     pub(crate) cross_filter: Arc<CrossFilter>,
+    pub(crate) settings: Arc<Settings>,
 }
 
 impl App {
@@ -34,6 +37,7 @@ impl App {
             error: Mutable::new(None),
             loading: Mutable::new(false),
             cross_filter: CrossFilter::new(),
+            settings: Settings::new(),
         })
     }
 
@@ -63,6 +67,16 @@ impl App {
     pub fn render(app: Arc<Self>) -> Dom {
         html!("div", {
             .dwclass!("w-full h-screen flex flex-col bg-gray-900")
+            // Apply zoom to <html> element so the entire page scales
+            .future(app.settings.zoom.signal().for_each(|z| {
+                if let Some(doc) = web_sys::window().and_then(|w| w.document()) {
+                    if let Some(el) = doc.document_element() {
+                        let html_el: &web_sys::HtmlElement = el.unchecked_ref();
+                        let _ = html_el.style().set_property("zoom", &format!("{}", z as f64 / 100.0));
+                    }
+                }
+                async {}
+            }))
             // Top bar
             .child(html!("div", {
                 .dwclass!("flex items-center px-4 py-3")
@@ -111,7 +125,7 @@ impl App {
                         })
                     })
                 }))
-                // Spacer to push summary to the right
+                // Spacer to push summary + cog to the right
                 .child(html!("div", {
                     .style("flex", "1")
                 }))
@@ -124,6 +138,20 @@ impl App {
                             .text(&text)
                         })
                     })
+                }))
+                // Settings cog
+                .child(html!("button", {
+                    .style("cursor", "pointer")
+                    .style("font-size", "28px")
+                    .style("background", "none")
+                    .style("border", "none")
+                    .style("padding", "4px 8px")
+                    .style("line-height", "1")
+                    .dwclass!("text-gray-400")
+                    .text("\u{2699}\u{fe0f}")
+                    .event(clone!(app => move |_: events::Click| {
+                        app.settings.open.set(true);
+                    }))
                 }))
             }))
             // Error banner
@@ -173,6 +201,14 @@ impl App {
                     }))
                 )
             }))
+            // Settings modal
+            .child_signal(app.settings.open.signal().map(clone!(app => move |open| {
+                if open {
+                    Some(render_settings_modal(app.settings.clone()))
+                } else {
+                    None
+                }
+            })))
         })
     }
 }
