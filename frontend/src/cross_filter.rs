@@ -14,7 +14,8 @@ pub enum MatchMode {
 
 pub struct ValueSelection {
     pub value: String,
-    pub selected: Mutable<bool>,
+    pub included: Mutable<bool>,
+    pub excluded: Mutable<bool>,
 }
 
 pub struct CrossFilter {
@@ -77,7 +78,8 @@ impl CrossFilter {
             .map(|v| {
                 Arc::new(ValueSelection {
                     value: v,
-                    selected: Mutable::new(true),
+                    included: Mutable::new(true),
+                    excluded: Mutable::new(false),
                 })
             })
             .collect();
@@ -105,15 +107,23 @@ impl CrossFilter {
             }
         };
 
-        let selected: HashSet<String> = self
+        let included: HashSet<String> = self
             .selected_values
             .lock_ref()
             .iter()
-            .filter(|v| v.selected.get())
+            .filter(|v| v.included.get())
             .map(|v| v.value.clone())
             .collect();
 
-        if selected.is_empty() {
+        let excluded: HashSet<String> = self
+            .selected_values
+            .lock_ref()
+            .iter()
+            .filter(|v| v.excluded.get())
+            .map(|v| v.value.clone())
+            .collect();
+
+        if included.is_empty() && excluded.is_empty() {
             self.results.lock_mut().clear();
             self.matching_keys.set(Some(HashSet::new()));
             return;
@@ -132,9 +142,19 @@ impl CrossFilter {
         let mode = *self.match_mode.lock_ref();
         let matching: HashSet<String> = key_values
             .into_iter()
-            .filter(|(_, vals)| match mode {
-                MatchMode::And => selected.iter().all(|s| vals.contains(s)),
-                MatchMode::Or => selected.iter().any(|s| vals.contains(s)),
+            .filter(|(_, vals)| {
+                // Exclude: key must NOT have any excluded value
+                if excluded.iter().any(|e| vals.contains(e)) {
+                    return false;
+                }
+                // Include (if any are selected)
+                if included.is_empty() {
+                    return true;
+                }
+                match mode {
+                    MatchMode::And => included.iter().all(|s| vals.contains(s)),
+                    MatchMode::Or => included.iter().any(|s| vals.contains(s)),
+                }
             })
             .map(|(key, _)| key)
             .collect();

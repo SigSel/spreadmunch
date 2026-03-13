@@ -167,7 +167,7 @@ pub fn render_filter_panel(app: Arc<App>) -> Dom {
             }))
         }))
 
-        // Filter Values section
+        // Include Values section
         .child(html!("div", {
             .dwclass!("px-4 py-3")
             .style("border-bottom", "1px solid #374151")
@@ -176,7 +176,7 @@ pub fn render_filter_panel(app: Arc<App>) -> Dom {
                 .style("justify-content", "space-between")
                 .child(html!("label", {
                     .dwclass!("text-xs text-gray-400")
-                    .text("Filter Values:")
+                    .text("Include Values:")
                 }))
                 .child(html!("div", {
                     .dwclass!("flex")
@@ -187,7 +187,9 @@ pub fn render_filter_panel(app: Arc<App>) -> Dom {
                         .text("Select All")
                         .event(clone!(app => move |_: events::Click| {
                             for v in app.cross_filter.selected_values.lock_ref().iter() {
-                                v.selected.set(true);
+                                if !v.excluded.get() {
+                                    v.included.set(true);
+                                }
                             }
                             if let Some(data) = app.data.lock_ref().as_ref() {
                                 app.cross_filter.compute_results(data);
@@ -200,7 +202,7 @@ pub fn render_filter_panel(app: Arc<App>) -> Dom {
                         .text("Clear All")
                         .event(clone!(app => move |_: events::Click| {
                             for v in app.cross_filter.selected_values.lock_ref().iter() {
-                                v.selected.set(false);
+                                v.included.set(false);
                             }
                             if let Some(data) = app.data.lock_ref().as_ref() {
                                 app.cross_filter.compute_results(data);
@@ -217,22 +219,93 @@ pub fn render_filter_panel(app: Arc<App>) -> Dom {
                         .map(clone!(app => move |vs| {
                             let label = vs.value.clone();
                             html!("label", {
-                                .dwclass!("flex items-center py-1 text-sm text-gray-300")
+                                .dwclass!("flex items-center py-1 text-sm")
                                 .style("gap", "8px")
                                 .style("cursor", "pointer")
+                                // Grey out if this value is excluded
+                                .style_signal("opacity", vs.excluded.signal().map(|ex| {
+                                    if ex { "0.35" } else { "1" }
+                                }))
                                 .child(html!("input" => HtmlInputElement, {
                                     .attr("type", "checkbox")
-                                    .prop_signal("checked", vs.selected.signal())
+                                    .prop_signal("checked", vs.included.signal())
+                                    .prop_signal("disabled", vs.excluded.signal())
                                     .with_node!(element => {
                                         .event(clone!(app, vs => move |_: events::Change| {
-                                            vs.selected.set(element.checked());
+                                            vs.included.set(element.checked());
                                             if let Some(data) = app.data.lock_ref().as_ref() {
                                                 app.cross_filter.compute_results(data);
                                             }
                                         }))
                                     })
                                 }))
-                                .text(&label)
+                                .child(html!("span", {
+                                    .dwclass!("text-gray-300")
+                                    .text(&label)
+                                }))
+                            })
+                        }))
+                )
+            }))
+        }))
+
+        // Exclude Values section
+        .child(html!("div", {
+            .dwclass!("px-4 py-3")
+            .style("border-bottom", "1px solid #374151")
+            .child(html!("div", {
+                .dwclass!("flex items-center mb-2")
+                .style("justify-content", "space-between")
+                .child(html!("label", {
+                    .dwclass!("text-xs text-gray-400")
+                    .text("Exclude Values (NOT):")
+                }))
+                .child(html!("button", {
+                    .dwclass!("px-3 py-1 bg-gray-600 text-white text-xs font-medium rounded")
+                    .style("cursor", "pointer")
+                    .text("Clear All")
+                    .event(clone!(app => move |_: events::Click| {
+                        for v in app.cross_filter.selected_values.lock_ref().iter() {
+                            v.excluded.set(false);
+                        }
+                        if let Some(data) = app.data.lock_ref().as_ref() {
+                            app.cross_filter.compute_results(data);
+                        }
+                    }))
+                }))
+            }))
+            .child(html!("div", {
+                .style("max-height", "200px")
+                .style("overflow-y", "auto")
+                .children_signal_vec(
+                    app.cross_filter.selected_values.signal_vec_cloned()
+                        .map(clone!(app => move |vs| {
+                            let label = vs.value.clone();
+                            html!("label", {
+                                .dwclass!("flex items-center py-1 text-sm")
+                                .style("gap", "8px")
+                                .style("cursor", "pointer")
+                                // Grey out if this value is included
+                                .style_signal("opacity", vs.included.signal().map(|inc| {
+                                    if inc { "0.35" } else { "1" }
+                                }))
+                                .child(html!("input" => HtmlInputElement, {
+                                    .attr("type", "checkbox")
+                                    .prop_signal("checked", vs.excluded.signal())
+                                    .prop_signal("disabled", vs.included.signal())
+                                    .with_node!(element => {
+                                        .event(clone!(app, vs => move |_: events::Change| {
+                                            vs.excluded.set(element.checked());
+                                            if let Some(data) = app.data.lock_ref().as_ref() {
+                                                app.cross_filter.compute_results(data);
+                                            }
+                                        }))
+                                    })
+                                }))
+                                .child(html!("span", {
+                                    .dwclass!("text-gray-300")
+                                    .text(&label)
+                                }))
                             })
                         }))
                 )
