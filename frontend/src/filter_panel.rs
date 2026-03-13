@@ -44,9 +44,9 @@ pub fn render_filter_panel(app: Arc<App>) -> Dom {
                 .text("Cross-Column Filter")
             }))
             .child(html!("button", {
-                .dwclass!("text-gray-400 text-sm")
+                .dwclass!("px-3 py-1 bg-gray-600 text-white text-xs font-medium rounded")
                 .style("cursor", "pointer")
-                .text("\u{2715}")
+                .text("Close")
                 .event(clone!(app => move |_: events::Click| {
                     app.cross_filter.panel_open.set(false);
                 }))
@@ -182,7 +182,7 @@ pub fn render_filter_panel(app: Arc<App>) -> Dom {
                     .dwclass!("flex")
                     .style("gap", "8px")
                     .child(html!("button", {
-                        .dwclass!("text-xs text-blue-400")
+                        .dwclass!("px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded")
                         .style("cursor", "pointer")
                         .text("Select All")
                         .event(clone!(app => move |_: events::Click| {
@@ -195,7 +195,7 @@ pub fn render_filter_panel(app: Arc<App>) -> Dom {
                         }))
                     }))
                     .child(html!("button", {
-                        .dwclass!("text-xs text-blue-400")
+                        .dwclass!("px-3 py-1 bg-gray-600 text-white text-xs font-medium rounded")
                         .style("cursor", "pointer")
                         .text("Clear All")
                         .event(clone!(app => move |_: events::Click| {
