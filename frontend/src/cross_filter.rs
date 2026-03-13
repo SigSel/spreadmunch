@@ -56,6 +56,7 @@ impl CrossFilter {
     pub fn clear_filter(&self) {
         self.key_column.set(None);
         self.values_column.set(None);
+        self.selected_values.lock_mut().clear();
         self.results.lock_mut().clear();
         self.matching_keys.set(None);
         self.summary.set(None);
