@@ -3,33 +3,15 @@ use std::sync::Arc;
 use dominator::{clone, events, html, Dom};
 use dwind::prelude::*;
 use dwind_macros::dwclass;
-use futures_signals::signal::{Mutable, SignalExt};
-use serde::Serialize;
-use wasm_bindgen_futures::spawn_local;
+use futures_signals::signal::Mutable;
 
 pub struct Settings {
-    pub zoom: Mutable<u32>,
     pub open: Mutable<bool>,
-}
-
-const ZOOM_LEVELS: &[u32] = &[75, 100, 125, 150, 175, 200];
-
-#[derive(Serialize)]
-struct ZoomArgs {
-    factor: f64,
-}
-
-async fn apply_zoom(level: u32) {
-    let factor = level as f64 / 100.0;
-    if let Ok(args) = tauri_wasm::args(&ZoomArgs { factor }) {
-        let _ = tauri_wasm::invoke("set_zoom").with_args(args).await;
-    }
 }
 
 impl Settings {
     pub fn new() -> Arc<Self> {
         Arc::new(Self {
-            zoom: Mutable::new(100),
             open: Mutable::new(false),
         })
     }
@@ -75,33 +57,10 @@ pub fn render_settings_modal(settings: Arc<Settings>) -> Dom {
                     }))
                 }))
             }))
-            // Zoom setting
-            .child(html!("div", {
-                .child(html!("label", {
-                    .dwclass!("text-sm text-gray-400")
-                    .text("Zoom Level:")
-                }))
-                .child(html!("div", {
-                    .dwclass!("flex mt-2")
-                    .style("gap", "8px")
-                    .style("flex-wrap", "wrap")
-                    .children(ZOOM_LEVELS.iter().map(|&level| {
-                        let settings = settings.clone();
-                        html!("button", {
-                            .dwclass!("px-3 py-2 text-sm font-medium rounded text-white")
-                            .style("cursor", "pointer")
-                            .style("min-width", "56px")
-                            .style_signal("background-color", settings.zoom.signal().map(move |z| {
-                                if z == level { "#2563eb" } else { "#374151" }
-                            }))
-                            .text(&format!("{level}%"))
-                            .event(move |_: events::Click| {
-                                settings.zoom.set(level);
-                                spawn_local(apply_zoom(level));
-                            })
-                        })
-                    }).collect::<Vec<_>>())
-                }))
+            // Placeholder
+            .child(html!("p", {
+                .dwclass!("text-sm text-gray-500")
+                .text("No settings here yet.")
             }))
         }))
     })

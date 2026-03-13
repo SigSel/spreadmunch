@@ -107,16 +107,9 @@ fn data_to_string(data: &calamine::Data) -> String {
     }
 }
 
-#[tauri::command]
-async fn set_zoom(window: tauri::WebviewWindow, factor: f64) -> Result<(), String> {
-    window
-        .set_zoom(factor)
-        .map_err(|e| format!("Failed to set zoom: {e}"))
-}
-
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![open_file, set_zoom])
+        .invoke_handler(tauri::generate_handler![open_file])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
