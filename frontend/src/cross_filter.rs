@@ -50,6 +50,13 @@ impl CrossFilter {
         self.matching_keys.set(None);
     }
 
+    pub fn clear_filter(&self) {
+        self.key_column.set(None);
+        self.values_column.set(None);
+        self.results.lock_mut().clear();
+        self.matching_keys.set(None);
+    }
+
     pub fn update_unique_values(&self, data: &SpreadsheetData) {
         let values_col = match *self.values_column.lock_ref() {
             Some(c) => c,

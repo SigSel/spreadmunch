@@ -16,16 +16,6 @@ pub fn render_filter_panel(app: Arc<App>) -> Dom {
         None => return html!("div"),
     };
 
-    let key_col_val = app
-        .cross_filter
-        .key_column
-        .lock_ref()
-        .map_or(String::new(), |i| i.to_string());
-    let values_col_val = app
-        .cross_filter
-        .values_column
-        .lock_ref()
-        .map_or(String::new(), |i| i.to_string());
 
     html!("div", {
         .style("width", "35%")
@@ -43,12 +33,24 @@ pub fn render_filter_panel(app: Arc<App>) -> Dom {
                 .dwclass!("text-sm font-semibold text-white")
                 .text("Cross-Column Filter")
             }))
-            .child(html!("button", {
-                .dwclass!("px-3 py-1 bg-gray-600 text-white text-xs font-medium rounded")
-                .style("cursor", "pointer")
-                .text("Close")
-                .event(clone!(app => move |_: events::Click| {
-                    app.cross_filter.panel_open.set(false);
+            .child(html!("div", {
+                .dwclass!("flex")
+                .style("gap", "8px")
+                .child(html!("button", {
+                    .dwclass!("px-3 py-1 bg-red-700 text-white text-xs font-medium rounded")
+                    .style("cursor", "pointer")
+                    .text("Clear Filter")
+                    .event(clone!(app => move |_: events::Click| {
+                        app.cross_filter.clear_filter();
+                    }))
+                }))
+                .child(html!("button", {
+                    .dwclass!("px-3 py-1 bg-gray-600 text-white text-xs font-medium rounded")
+                    .style("cursor", "pointer")
+                    .text("Close")
+                    .event(clone!(app => move |_: events::Click| {
+                        app.cross_filter.panel_open.set(false);
+                    }))
                 }))
             }))
         }))
@@ -75,7 +77,9 @@ pub fn render_filter_panel(app: Arc<App>) -> Dom {
                         .text(h)
                     })
                 }).collect::<Vec<_>>())
-                .prop("value", &key_col_val)
+                .prop_signal("value", app.cross_filter.key_column.signal().map(|col| {
+                    col.map_or(String::new(), |i| i.to_string())
+                }))
                 .with_node!(element => {
                     .event(clone!(app => move |_: events::Change| {
                         let val = element.value();
@@ -111,7 +115,9 @@ pub fn render_filter_panel(app: Arc<App>) -> Dom {
                         .text(h)
                     })
                 }).collect::<Vec<_>>())
-                .prop("value", &values_col_val)
+                .prop_signal("value", app.cross_filter.values_column.signal().map(|col| {
+                    col.map_or(String::new(), |i| i.to_string())
+                }))
                 .with_node!(element => {
                     .event(clone!(app => move |_: events::Change| {
                         let val = element.value();
