@@ -111,6 +111,20 @@ impl App {
                         })
                     })
                 }))
+                // Spacer to push summary to the right
+                .child(html!("div", {
+                    .style("flex", "1")
+                }))
+                // Filter summary
+                .child_signal(app.cross_filter.summary.signal_cloned().map(|summary| {
+                    summary.map(|text| {
+                        html!("span", {
+                            .dwclass!("text-xs text-gray-400")
+                            .style("text-align", "right")
+                            .text(&text)
+                        })
+                    })
+                }))
             }))
             // Error banner
             .child_signal(app.error.signal_cloned().map(|error| {
