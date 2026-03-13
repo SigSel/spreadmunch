@@ -3,6 +3,8 @@ gitignore_references = true
 
 [references.dwind]
 
+[references.get_clocked]
+
 [references.rust-dominator]
 
 [references.tauri]
