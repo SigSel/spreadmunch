@@ -4,6 +4,8 @@ use dominator::{clone, events, html, Dom};
 use dwind::prelude::*;
 use dwind_macros::dwclass;
 use futures_signals::signal::{Mutable, SignalExt};
+use serde::Serialize;
+use wasm_bindgen_futures::spawn_local;
 
 pub struct Settings {
     pub zoom: Mutable<u32>,
@@ -11,6 +13,18 @@ pub struct Settings {
 }
 
 const ZOOM_LEVELS: &[u32] = &[75, 100, 125, 150, 175, 200];
+
+#[derive(Serialize)]
+struct ZoomArgs {
+    factor: f64,
+}
+
+async fn apply_zoom(level: u32) {
+    let factor = level as f64 / 100.0;
+    if let Ok(args) = tauri_wasm::args(&ZoomArgs { factor }) {
+        let _ = tauri_wasm::invoke("set_zoom").with_args(args).await;
+    }
+}
 
 impl Settings {
     pub fn new() -> Arc<Self> {
@@ -83,6 +97,7 @@ pub fn render_settings_modal(settings: Arc<Settings>) -> Dom {
                             .text(&format!("{level}%"))
                             .event(move |_: events::Click| {
                                 settings.zoom.set(level);
+                                spawn_local(apply_zoom(level));
                             })
                         })
                     }).collect::<Vec<_>>())

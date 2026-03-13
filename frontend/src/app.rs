@@ -5,7 +5,6 @@ use dwind::prelude::*;
 use dwind_macros::dwclass;
 use futures_signals::map_ref;
 use futures_signals::signal::{Mutable, SignalExt};
-use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
 
 use crate::cross_filter::CrossFilter;
@@ -67,16 +66,6 @@ impl App {
     pub fn render(app: Arc<Self>) -> Dom {
         html!("div", {
             .dwclass!("w-full h-screen flex flex-col bg-gray-900")
-            // Apply zoom to <html> element so the entire page scales
-            .future(app.settings.zoom.signal().for_each(|z| {
-                if let Some(doc) = web_sys::window().and_then(|w| w.document()) {
-                    if let Some(el) = doc.document_element() {
-                        let html_el: &web_sys::HtmlElement = el.unchecked_ref();
-                        let _ = html_el.style().set_property("zoom", &format!("{}", z as f64 / 100.0));
-                    }
-                }
-                async {}
-            }))
             // Top bar
             .child(html!("div", {
                 .dwclass!("flex items-center px-4 py-3")
