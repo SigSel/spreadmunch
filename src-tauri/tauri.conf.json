@@ -1,6 +1,6 @@
 {
   "productName": "Spreadmunch",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "identifier": "com.spreadmunch.app",
   "build": {
     "beforeDevCommand": "cd frontend && trunk serve",
