@@ -90,7 +90,7 @@ impl CrossFilter {
             .map(|v| {
                 Arc::new(ValueSelection {
                     value: v,
-                    included: Mutable::new(true),
+                    included: Mutable::new(false),
                     excluded: Mutable::new(false),
                 })
             })
@@ -144,7 +144,7 @@ impl CrossFilter {
 
         if included.is_empty() && excluded.is_empty() {
             self.results.lock_mut().clear();
-            self.matching_keys.set(Some(HashSet::new()));
+            self.matching_keys.set(None);
             self.summary.set(None);
             return;
         }

@@ -1,4 +1,5 @@
 use serde::Serialize;
+use tauri::Emitter;
 
 #[derive(Debug, Serialize)]
 struct SpreadsheetData {
@@ -7,8 +8,14 @@ struct SpreadsheetData {
     rows: Vec<Vec<String>>,
 }
 
+#[derive(Clone, Serialize)]
+struct LoadingProgress {
+    loaded: usize,
+    total: usize,
+}
+
 #[tauri::command]
-async fn open_file() -> Result<SpreadsheetData, String> {
+async fn open_file(app: tauri::AppHandle) -> Result<SpreadsheetData, String> {
     let file = rfd::AsyncFileDialog::new()
         .add_filter("Spreadsheets", &["csv", "xlsx"])
         .pick_file()
@@ -29,13 +36,23 @@ async fn open_file() -> Result<SpreadsheetData, String> {
         .to_lowercase();
 
     match ext.as_str() {
-        "csv" => parse_csv(&path, file_name),
-        "xlsx" => parse_xlsx(&path, file_name),
+        "csv" => parse_csv(&path, file_name, &app),
+        "xlsx" => parse_xlsx(&path, file_name, &app),
         _ => Err(format!("Unsupported file type: {ext}")),
     }
 }
 
-fn parse_csv(path: &std::path::Path, file_name: String) -> Result<SpreadsheetData, String> {
+fn parse_csv(
+    path: &std::path::Path,
+    file_name: String,
+    app: &tauri::AppHandle,
+) -> Result<SpreadsheetData, String> {
+    // Quick line count by scanning for newlines
+    let content = std::fs::read(path).map_err(|e| format!("Failed to read file: {e}"))?;
+    let total = content.iter().filter(|&&b| b == b'\n').count().saturating_sub(1); // subtract header
+
+    let _ = app.emit("loading-progress", LoadingProgress { loaded: 0, total });
+
     let mut reader =
         csv::Reader::from_path(path).map_err(|e| format!("Failed to read CSV: {e}"))?;
 
@@ -46,11 +63,24 @@ fn parse_csv(path: &std::path::Path, file_name: String) -> Result<SpreadsheetDat
         .map(|h| h.to_string())
         .collect();
 
-    let rows = reader
-        .records()
-        .map(|r| r.map(|record| record.iter().map(|f| f.to_string()).collect()))
-        .collect::<Result<Vec<Vec<String>>, _>>()
-        .map_err(|e| format!("Failed to read CSV records: {e}"))?;
+    let mut rows = Vec::with_capacity(total);
+    let mut loaded = 0;
+    for result in reader.records() {
+        let record = result.map_err(|e| format!("Failed to read CSV records: {e}"))?;
+        rows.push(record.iter().map(|f| f.to_string()).collect());
+        loaded += 1;
+        if loaded % 5000 == 0 {
+            let _ = app.emit("loading-progress", LoadingProgress { loaded, total });
+        }
+    }
+
+    let _ = app.emit(
+        "loading-progress",
+        LoadingProgress {
+            loaded,
+            total: loaded,
+        },
+    );
 
     Ok(SpreadsheetData {
         file_name,
@@ -59,7 +89,11 @@ fn parse_csv(path: &std::path::Path, file_name: String) -> Result<SpreadsheetDat
     })
 }
 
-fn parse_xlsx(path: &std::path::Path, file_name: String) -> Result<SpreadsheetData, String> {
+fn parse_xlsx(
+    path: &std::path::Path,
+    file_name: String,
+    app: &tauri::AppHandle,
+) -> Result<SpreadsheetData, String> {
     use calamine::{open_workbook_auto, Reader};
 
     let mut workbook =
@@ -75,6 +109,9 @@ fn parse_xlsx(path: &std::path::Path, file_name: String) -> Result<SpreadsheetDa
         .worksheet_range(&sheet_name)
         .map_err(|e| format!("Failed to read sheet: {e}"))?;
 
+    let total = range.height().saturating_sub(1); // subtract header row
+    let _ = app.emit("loading-progress", LoadingProgress { loaded: 0, total });
+
     let mut row_iter = range.rows();
 
     let headers = row_iter
@@ -82,9 +119,23 @@ fn parse_xlsx(path: &std::path::Path, file_name: String) -> Result<SpreadsheetDa
         .map(|row| row.iter().map(|cell| data_to_string(cell)).collect())
         .unwrap_or_default();
 
-    let rows = row_iter
-        .map(|row| row.iter().map(|cell| data_to_string(cell)).collect())
-        .collect();
+    let mut rows = Vec::with_capacity(total);
+    let mut loaded = 0;
+    for row in row_iter {
+        rows.push(row.iter().map(|cell| data_to_string(cell)).collect());
+        loaded += 1;
+        if loaded % 5000 == 0 {
+            let _ = app.emit("loading-progress", LoadingProgress { loaded, total });
+        }
+    }
+
+    let _ = app.emit(
+        "loading-progress",
+        LoadingProgress {
+            loaded,
+            total: loaded,
+        },
+    );
 
     Ok(SpreadsheetData {
         file_name,

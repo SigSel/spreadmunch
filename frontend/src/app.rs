@@ -5,12 +5,20 @@ use dwind::prelude::*;
 use dwind_macros::dwclass;
 use futures_signals::map_ref;
 use futures_signals::signal::{Mutable, SignalExt};
+use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
 
 use crate::cross_filter::CrossFilter;
 use crate::filter_panel::render_filter_panel;
 use crate::settings::{render_settings_modal, Settings};
 use crate::table::render_table;
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "event"], catch)]
+    async fn listen(event: &str, handler: &js_sys::Function) -> Result<JsValue, JsValue>;
+}
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct SpreadsheetData {
@@ -19,12 +27,20 @@ pub struct SpreadsheetData {
     pub rows: Vec<Vec<String>>,
 }
 
+#[derive(Deserialize)]
+struct LoadingProgress {
+    loaded: usize,
+    total: usize,
+}
+
 use serde::Deserialize;
 
 pub struct App {
     pub(crate) data: Mutable<Option<SpreadsheetData>>,
     error: Mutable<Option<String>>,
     loading: Mutable<bool>,
+    loading_progress: Mutable<Option<(usize, usize)>>,
+    pub(crate) page: Mutable<usize>,
     pub(crate) cross_filter: Arc<CrossFilter>,
     pub(crate) settings: Arc<Settings>,
 }
@@ -35,6 +51,8 @@ impl App {
             data: Mutable::new(None),
             error: Mutable::new(None),
             loading: Mutable::new(false),
+            loading_progress: Mutable::new(None),
+            page: Mutable::new(0),
             cross_filter: CrossFilter::new(),
             settings: Settings::new(),
         })
@@ -43,11 +61,27 @@ impl App {
     async fn open_file(app: Arc<Self>) {
         app.loading.set(true);
         app.error.set(None);
+        app.loading_progress.set(None);
+
+        // Set up event listener for loading progress
+        let app_progress = app.clone();
+        let closure = Closure::<dyn FnMut(JsValue)>::new(move |event: JsValue| {
+            if let Ok(payload) = js_sys::Reflect::get(&event, &JsValue::from_str("payload")) {
+                if let Ok(progress) = serde_wasm_bindgen::from_value::<LoadingProgress>(payload) {
+                    app_progress
+                        .loading_progress
+                        .set(Some((progress.loaded, progress.total)));
+                }
+            }
+        });
+
+        let unlisten_fn = listen("loading-progress", closure.as_ref().unchecked_ref()).await;
 
         match tauri_wasm::invoke("open_file").await {
             Ok(js_val) => match serde_wasm_bindgen::from_value::<SpreadsheetData>(js_val) {
                 Ok(data) => {
                     app.cross_filter.reset();
+                    app.page.set(0);
                     app.data.set(Some(data));
                 }
                 Err(e) => app.error.set(Some(format!("Deserialization error: {e}"))),
@@ -60,6 +94,15 @@ impl App {
             }
         }
 
+        // Clean up the event listener
+        if let Ok(unlisten_js) = unlisten_fn {
+            if let Ok(f) = unlisten_js.dyn_into::<js_sys::Function>() {
+                let _ = f.call0(&JsValue::NULL);
+            }
+        }
+        drop(closure);
+
+        app.loading_progress.set(None);
         app.loading.set(false);
     }
 
@@ -124,6 +167,11 @@ impl App {
                         html!("span", {
                             .dwclass!("text-xs text-gray-400")
                             .style("text-align", "right")
+                            .style("overflow", "hidden")
+                            .style("text-overflow", "ellipsis")
+                            .style("white-space", "nowrap")
+                            .style("max-width", "400px")
+                            .attr("title", &text)
                             .text(&text)
                         })
                     })
@@ -162,22 +210,39 @@ impl App {
                     .style("flex", "1")
                     .style("min-width", "0")
                     .style("overflow", "auto")
-                    .child_signal(
+                    .child_signal({
+                        let page_mutable = app.page.clone();
                         map_ref! {
                             let data = app.data.signal_cloned(),
                             let keys = app.cross_filter.matching_keys.signal_cloned(),
-                            let key_col = app.cross_filter.key_column.signal()
+                            let key_col = app.cross_filter.key_column.signal(),
+                            let loading = app.loading.signal(),
+                            let progress = app.loading_progress.signal(),
+                            let page = page_mutable.signal()
                             => {
-                                Some(match data {
-                                    Some(d) => render_table(d, keys.as_ref(), *key_col),
-                                    None => html!("div", {
-                                        .dwclass!("flex-1 flex items-center justify-center text-gray-500 text-lg")
-                                        .text("Open a CSV or XLSX file to get started")
-                                    }),
+                                Some(if *loading {
+                                    let text = match progress {
+                                        Some((loaded, total)) if *total > 0 => {
+                                            format!("Loading... {loaded} / {total} rows")
+                                        }
+                                        _ => "Loading...".to_string(),
+                                    };
+                                    html!("div", {
+                                        .dwclass!("flex-1 flex items-center justify-center text-gray-400 text-lg")
+                                        .text(&text)
+                                    })
+                                } else {
+                                    match data {
+                                        Some(d) => render_table(d, keys.as_ref(), *key_col, *page, page_mutable.clone()),
+                                        None => html!("div", {
+                                            .dwclass!("flex-1 flex items-center justify-center text-gray-500 text-lg")
+                                            .text("Open a CSV or XLSX file to get started")
+                                        }),
+                                    }
                                 })
                             }
                         }
-                    )
+                    })
                 }))
                 // Filter panel
                 .child_signal(
