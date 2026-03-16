@@ -121,6 +121,8 @@ impl App {
                 .child(html!("button", {
                     .dwclass!("px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded")
                     .style("cursor", "pointer")
+                    .style("flex-shrink", "0")
+                    .style("white-space", "nowrap")
                     .text("Open File")
                     .event(clone!(app => move |_: events::Click| {
                         let app = app.clone();
@@ -135,6 +137,8 @@ impl App {
                         html!("button", {
                             .dwclass!("px-4 py-2 text-white text-sm font-medium rounded")
                             .style("cursor", "pointer")
+                            .style("flex-shrink", "0")
+                            .style("white-space", "nowrap")
                             .style_signal("background-color",
                                 app.cross_filter.panel_open.signal().map(|open| {
                                     if open { "#7c3aed" } else { "#6d28d9" }
@@ -153,6 +157,8 @@ impl App {
                     data.map(|d| {
                         html!("span", {
                             .dwclass!("text-sm text-gray-400")
+                            .style("flex-shrink", "0")
+                            .style("white-space", "nowrap")
                             .text(&d.file_name)
                         })
                     })
