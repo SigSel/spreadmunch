@@ -8,7 +8,7 @@ use futures_signals::signal_vec::SignalVecExt;
 use web_sys::{HtmlInputElement, HtmlSelectElement};
 
 use crate::app::App;
-use crate::cross_filter::MatchMode;
+use crate::cross_filter::{MatchMode, MAX_DISPLAY_VALUES};
 
 pub fn render_filter_panel(app: Arc<App>) -> Dom {
     let headers: Vec<String> = match app.data.lock_ref().as_ref() {
@@ -129,6 +129,19 @@ pub fn render_filter_panel(app: Arc<App>) -> Dom {
                     }))
                 })
             }))
+        }))
+
+        // Truncation info banner
+        .child_signal(app.cross_filter.total_unique_count.signal().map(|count| {
+            count.map(|total| {
+                html!("div", {
+                    .dwclass!("px-4 py-2 text-xs")
+                    .style("background-color", "#78350f")
+                    .style("color", "#fbbf24")
+                    .style("border-bottom", "1px solid #374151")
+                    .text(&format!("Showing {} of {} unique values", MAX_DISPLAY_VALUES, total))
+                })
+            })
         }))
 
         // Match Mode toggle

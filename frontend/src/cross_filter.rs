@@ -17,6 +17,8 @@ pub struct ValueSelection {
     pub excluded: Mutable<bool>,
 }
 
+pub const MAX_DISPLAY_VALUES: usize = 20;
+
 pub struct CrossFilter {
     pub key_column: Mutable<Option<usize>>,
     pub values_column: Mutable<Option<usize>>,
@@ -26,6 +28,7 @@ pub struct CrossFilter {
     pub matching_keys: Mutable<Option<HashSet<String>>>,
     pub summary: Mutable<Option<String>>,
     pub panel_open: Mutable<bool>,
+    pub total_unique_count: Mutable<Option<usize>>,
 }
 
 impl CrossFilter {
@@ -39,6 +42,7 @@ impl CrossFilter {
             matching_keys: Mutable::new(None),
             summary: Mutable::new(None),
             panel_open: Mutable::new(false),
+            total_unique_count: Mutable::new(None),
         })
     }
 
@@ -50,6 +54,7 @@ impl CrossFilter {
         self.results.lock_mut().clear();
         self.matching_keys.set(None);
         self.summary.set(None);
+        self.total_unique_count.set(None);
     }
 
     pub fn clear_filter(&self) {
@@ -59,6 +64,7 @@ impl CrossFilter {
         self.results.lock_mut().clear();
         self.matching_keys.set(None);
         self.summary.set(None);
+        self.total_unique_count.set(None);
     }
 
     pub fn update_unique_values(&self, data: &SpreadsheetData) {
@@ -83,6 +89,14 @@ impl CrossFilter {
 
         let mut sorted: Vec<String> = unique.into_iter().collect();
         sorted.sort();
+
+        let total = sorted.len();
+        if total > MAX_DISPLAY_VALUES {
+            self.total_unique_count.set(Some(total));
+            sorted.truncate(MAX_DISPLAY_VALUES);
+        } else {
+            self.total_unique_count.set(None);
+        }
 
         let selections: Vec<Arc<ValueSelection>> = sorted
             .into_iter()
