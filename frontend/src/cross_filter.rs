@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use futures_signals::signal::Mutable;
 use futures_signals::signal_vec::MutableVec;
-
 use crate::app::SpreadsheetData;
 
 #[derive(Clone, Copy, PartialEq, Eq)]

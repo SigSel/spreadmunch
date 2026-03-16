@@ -77,13 +77,13 @@ pub fn render_filter_panel(app: Arc<App>) -> Dom {
                         .text(h)
                     })
                 }).collect::<Vec<_>>())
-                .prop_signal("value", app.cross_filter.key_column.signal().map(|col| {
-                    col.map_or(String::new(), |i| i.to_string())
+                .prop_signal("selectedIndex", app.cross_filter.key_column.signal().map(|col| {
+                    col.map_or(0i32, |i| (i + 1) as i32)
                 }))
                 .with_node!(element => {
                     .event(clone!(app => move |_: events::Change| {
-                        let val = element.value();
-                        let col = if val.is_empty() { None } else { val.parse().ok() };
+                        let idx = element.selected_index();
+                        let col = if idx <= 0 { None } else { Some((idx - 1) as usize) };
                         app.cross_filter.key_column.set(col);
                         if let Some(data) = app.data.lock_ref().as_ref() {
                             app.cross_filter.compute_results(data);
@@ -115,13 +115,13 @@ pub fn render_filter_panel(app: Arc<App>) -> Dom {
                         .text(h)
                     })
                 }).collect::<Vec<_>>())
-                .prop_signal("value", app.cross_filter.values_column.signal().map(|col| {
-                    col.map_or(String::new(), |i| i.to_string())
+                .prop_signal("selectedIndex", app.cross_filter.values_column.signal().map(|col| {
+                    col.map_or(0i32, |i| (i + 1) as i32)
                 }))
                 .with_node!(element => {
                     .event(clone!(app => move |_: events::Change| {
-                        let val = element.value();
-                        let col = if val.is_empty() { None } else { val.parse().ok() };
+                        let idx = element.selected_index();
+                        let col = if idx <= 0 { None } else { Some((idx - 1) as usize) };
                         app.cross_filter.values_column.set(col);
                         if let Some(data) = app.data.lock_ref().as_ref() {
                             app.cross_filter.update_unique_values(data);
