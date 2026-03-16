@@ -15,9 +15,11 @@ Built with [Tauri 2](https://tauri.app/) and a Rust/WASM frontend.
   - Live summary in the top bar describing the active filter
   - Table updates in real time as you adjust the filter
 
-## Screenshot
+## Screenshots
 
-*Coming soon*
+![Start page](assets/startpage.jpg)
+
+![Cross-column filter](assets/crossfilter.jpg)
 
 ## Getting Started
 
