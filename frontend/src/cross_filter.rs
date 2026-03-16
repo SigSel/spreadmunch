@@ -1,9 +1,12 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use futures_signals::signal::Mutable;
 use futures_signals::signal_vec::MutableVec;
-use crate::app::SpreadsheetData;
+use spreadmunch_core::cross_filter::{
+    self as core_filter, CrossFilterInput, MatchMode as CoreMatchMode,
+};
+use spreadmunch_core::types::SpreadsheetData;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum MatchMode {
@@ -78,17 +81,7 @@ impl CrossFilter {
             }
         };
 
-        let mut unique = HashSet::new();
-        for row in &data.rows {
-            if let Some(val) = row.get(values_col) {
-                if !val.is_empty() {
-                    unique.insert(val.clone());
-                }
-            }
-        }
-
-        let mut sorted: Vec<String> = unique.into_iter().collect();
-        sorted.sort();
+        let mut sorted = core_filter::get_unique_values(&data.rows, values_col);
 
         let total = sorted.len();
         if total > MAX_DISPLAY_VALUES {
@@ -162,35 +155,22 @@ impl CrossFilter {
             return;
         }
 
-        // Build key -> set of values
-        let mut key_values: HashMap<String, HashSet<String>> = HashMap::new();
-        for row in &data.rows {
-            let key = row.get(key_col).cloned().unwrap_or_default();
-            let val = row.get(values_col).cloned().unwrap_or_default();
-            if !key.is_empty() && !val.is_empty() {
-                key_values.entry(key).or_default().insert(val);
-            }
-        }
-
         let mode = *self.match_mode.lock_ref();
-        let matching: HashSet<String> = key_values
-            .into_iter()
-            .filter(|(_, vals)| {
-                // Exclude: key must NOT have any excluded value
-                if excluded.iter().any(|e| vals.contains(e)) {
-                    return false;
-                }
-                // Include (if any are selected)
-                if included.is_empty() {
-                    return true;
-                }
-                match mode {
-                    MatchMode::And => included.iter().all(|s| vals.contains(s)),
-                    MatchMode::Or => included.iter().any(|s| vals.contains(s)),
-                }
-            })
-            .map(|(key, _)| key)
-            .collect();
+        let core_mode = match mode {
+            MatchMode::And => CoreMatchMode::And,
+            MatchMode::Or => CoreMatchMode::Or,
+        };
+
+        let matching = core_filter::compute_cross_filter(
+            &data.rows,
+            &CrossFilterInput {
+                key_col,
+                values_col,
+                included,
+                excluded,
+                mode: core_mode,
+            },
+        );
 
         let mut sorted: Vec<String> = matching.iter().cloned().collect();
         sorted.sort();

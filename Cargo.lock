@@ -3761,10 +3761,19 @@ dependencies = [
  "js-sys",
  "serde",
  "serde-wasm-bindgen",
+ "spreadmunch-core",
  "tauri-wasm",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+]
+
+[[package]]
+name = "spreadmunch-core"
+version = "0.4.0"
+dependencies = [
+ "csv",
+ "serde",
 ]
 
 [[package]]
@@ -3776,6 +3785,7 @@ dependencies = [
  "rfd",
  "serde",
  "serde_json",
+ "spreadmunch-core",
  "tauri",
  "tauri-build",
 ]

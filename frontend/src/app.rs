@@ -20,20 +20,15 @@ extern "C" {
     async fn listen(event: &str, handler: &js_sys::Function) -> Result<JsValue, JsValue>;
 }
 
-#[derive(Deserialize, Clone, Debug)]
-pub struct SpreadsheetData {
-    pub file_name: String,
-    pub headers: Vec<String>,
-    pub rows: Vec<Vec<String>>,
-}
+pub use spreadmunch_core::types::SpreadsheetData;
+
+use serde::Deserialize;
 
 #[derive(Deserialize)]
 struct LoadingProgress {
     loaded: usize,
     total: usize,
 }
-
-use serde::Deserialize;
 
 pub struct App {
     pub(crate) data: Mutable<Option<SpreadsheetData>>,

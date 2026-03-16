@@ -8,6 +8,7 @@ license = "GPL-3.0-or-later"
 crate-type = ["cdylib"]
 
 [dependencies]
+spreadmunch-core = { path = "../core" }
 dominator = "0.5"
 dwind = "0.7"
 dwind-macros = "0.4"
